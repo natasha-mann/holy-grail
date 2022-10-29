@@ -6,6 +6,10 @@ const START_URL =
 
 let holyGrailLocation;
 
+let treasureValue = 0;
+let deadSpiders = 0;
+const boots = [];
+
 const readJson = async (url) => {
   const response = await fetch(url);
   const data = await response.json();
@@ -129,60 +133,55 @@ const getMostFrequentValue = (arr) => {
   return Object.keys(store).sort((a, b) => store[b] - store[a])[0];
 };
 
+const searchChests = async (arr) => {
+  console.log("SEARCHING");
+  const newUrls = [];
+  let isHoly;
+  arr.forEach((treasureChest, i) => {
+    isHoly = isHolyGrail(treasureChest);
+    // console.log(isHoly);
+
+    if (isHoly) {
+      holyGrailLocation = treasureChest.location;
+    }
+
+    const { totalValue, deadSpiderCount, bootsArray } = calculateValue(
+      treasureChest.contents
+    );
+
+    treasureValue += totalValue;
+    deadSpiders += deadSpiderCount;
+    boots.push(...bootsArray);
+
+    const flatArray = flattenObjectValues(treasureChest);
+
+    const urls = findNewJsonUrls(flatArray);
+    if (urls.length) {
+      newUrls.push(...urls);
+    }
+  });
+
+  if (newUrls.length) {
+    console.log("NEWURLS", newUrls.length);
+    const responses = await Promise.all(
+      newUrls.map((url, i) => {
+        console.log("URL", url);
+        return readJson(url);
+      })
+    );
+
+    for (response of responses) {
+      await searchChests(response);
+    }
+  }
+
+  return isHoly;
+};
+
 const findTreasure = async () => {
   const startData = await readJson(START_URL);
 
-  let treasureValue = 0;
-  let deadSpiders = 0;
-  const boots = [];
-
-  const searchChests = (arr) => {
-    console.log("SEARCHING");
-    const newUrls = [];
-    let isHoly;
-    arr.forEach((treasureChest, i) => {
-      isHoly = isHolyGrail(treasureChest);
-      // console.log(isHoly);
-
-      if (isHoly) {
-        console.log({ holyGrailLocation: treasureChest.location });
-        holyGrailLocation = treasureChest.location;
-      }
-
-      const { totalValue, deadSpiderCount, bootsArray } = calculateValue(
-        treasureChest.contents
-      );
-
-      treasureValue += totalValue;
-      deadSpiders += deadSpiderCount;
-      boots.push(...bootsArray);
-
-      // console.log(treasureValue, deadSpiders, bootsArray);
-
-      const flatArray = flattenObjectValues(treasureChest);
-
-      const urls = findNewJsonUrls(flatArray);
-      if (urls.length) {
-        newUrls.push(...urls);
-      }
-    });
-
-    if (newUrls.length) {
-      console.log("NEWURLS", newUrls.length);
-      newUrls.forEach(async (url, i) => {
-        console.log("URL", url);
-        const data = await readJson(url);
-        if (i === 0) {
-          console.log("DATA", data[0].note);
-        }
-        return searchChests(data);
-      });
-    }
-
-    return isHoly;
-  };
-
-  searchChests(startData);
+  await searchChests(startData);
 
   const mostCommonBootSize = getMostFrequentValue(boots);
 
@@ -190,12 +189,13 @@ const findTreasure = async () => {
     treasureValue,
     deadSpiders,
     mostCommonBootSize,
+    holyGrailLocation,
   };
 };
 
 const getResult = async () => {
-  const result = await findTreasure();
-  console.log("LINE 198", result);
+  const values = await findTreasure();
+  console.log("LINE 198", values);
 };
 
 getResult();
