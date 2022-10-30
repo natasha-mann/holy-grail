@@ -1,23 +1,22 @@
-const { get } = require("http");
 const fetch = require("node-fetch");
 
 const START_URL =
   "https://e0f5e8673c64491d8cce34f5.z35.web.core.windows.net/treasure.json";
 
-let holyGrailLocation;
+let HOLY_GRAIL_LOCATION;
 
-let treasureValue = 0;
-let deadSpiders = 0;
-const boots = [];
+let TREASURE_VALUE = 0;
+let DEAD_SPIDERS = 0;
+const BOOTS = [];
 
 const readJson = async (url) => {
   const response = await fetch(url);
-  const data = await response.json();
-  return data;
+  return await response.json();
 };
 
 const flattenObjectValues = (value) => {
   let temp = [];
+
   if (typeof value == "object") {
     if (Array.isArray(value)) {
       for (let i of value) {
@@ -41,21 +40,25 @@ const flattenObjectValues = (value) => {
 const isHolyGrail = (obj) => {
   if (!obj || (typeof obj !== "object" && !Array.isArray(obj))) {
     return false;
-  } else if (obj.hasOwnProperty("holy-grail")) {
+  }
+
+  if (obj.hasOwnProperty("holy-grail")) {
     return true;
-  } else if (Array.isArray(obj)) {
+  }
+
+  if (Array.isArray(obj)) {
     for (let i = 0; i < obj.length; i++) {
       const result = isHolyGrail(obj[i], "holy-grail");
       if (result) {
         return result;
       }
     }
-  } else {
-    for (const k in obj) {
-      const result = isHolyGrail(obj[k], "holy-grail");
-      if (result) {
-        return result;
-      }
+  }
+
+  for (const k in obj) {
+    const result = isHolyGrail(obj[k], "holy-grail");
+    if (result) {
+      return result;
     }
   }
 
@@ -130,42 +133,40 @@ const calculateValue = (contents) => {
 const getMostFrequentValue = (arr) => {
   const store = {};
   arr.forEach((num) => (store[num] ? (store[num] += 1) : (store[num] = 1)));
-  return Object.keys(store).sort((a, b) => store[b] - store[a])[0];
+  return Number(Object.keys(store).sort((a, b) => store[b] - store[a])[0]);
 };
 
 const searchChests = async (arr) => {
-  console.log("SEARCHING");
   const newUrls = [];
+
   let isHoly;
   arr.forEach((treasureChest, i) => {
     isHoly = isHolyGrail(treasureChest);
-    // console.log(isHoly);
 
     if (isHoly) {
-      holyGrailLocation = treasureChest.location;
+      HOLY_GRAIL_LOCATION = treasureChest.location;
     }
 
     const { totalValue, deadSpiderCount, bootsArray } = calculateValue(
       treasureChest.contents
     );
 
-    treasureValue += totalValue;
-    deadSpiders += deadSpiderCount;
-    boots.push(...bootsArray);
+    TREASURE_VALUE += totalValue;
+    DEAD_SPIDERS += deadSpiderCount;
+    BOOTS.push(...bootsArray);
 
     const flatArray = flattenObjectValues(treasureChest);
 
     const urls = findNewJsonUrls(flatArray);
+
     if (urls.length) {
       newUrls.push(...urls);
     }
   });
 
   if (newUrls.length) {
-    console.log("NEWURLS", newUrls.length);
     const responses = await Promise.all(
-      newUrls.map((url, i) => {
-        console.log("URL", url);
+      newUrls.map((url) => {
         return readJson(url);
       })
     );
@@ -174,8 +175,6 @@ const searchChests = async (arr) => {
       await searchChests(response);
     }
   }
-
-  return isHoly;
 };
 
 const findTreasure = async () => {
@@ -183,19 +182,19 @@ const findTreasure = async () => {
 
   await searchChests(startData);
 
-  const mostCommonBootSize = getMostFrequentValue(boots);
+  const mostCommonBootSize = getMostFrequentValue(BOOTS);
 
   return {
-    treasureValue,
-    deadSpiders,
-    mostCommonBootSize,
-    holyGrailLocation,
+    "Holy Grail location": HOLY_GRAIL_LOCATION,
+    "Total chest value": TREASURE_VALUE,
+    "Dead spiders": DEAD_SPIDERS,
+    "Most common boot size": mostCommonBootSize,
   };
 };
 
 const getResult = async () => {
   const values = await findTreasure();
-  console.log("LINE 198", values);
+  console.log(values);
 };
 
 getResult();
