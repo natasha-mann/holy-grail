@@ -110,7 +110,7 @@ const calculateValue = (contents) => {
       }
 
       if (item === "spider") {
-        if (!item.alive) {
+        if (!object.alive) {
           deadSpiderCount++;
         }
         return 0;
